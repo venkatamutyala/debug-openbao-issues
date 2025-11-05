@@ -57,37 +57,3 @@ helm install external-secrets external-secrets/external-secrets --version 0.19.2
 ./manage-secrets.sh create
 
 
-
-# 2:53PM PT
-NAME      CPU(cores)   MEMORY(bytes)
-vault-0   330m         145Mi
-vault-1   170m         62Mi
-vault-2   172m         64Mi
-
-
-# 3:05PM PT
-Every 2.0s: kubectl top pods -n openbao-vault                                                                                                                                                                                                                        copper-sole: Tue Nov  4 23:05:19 2025
-
-NAME      CPU(cores)   MEMORY(bytes)
-vault-0   340m         189Mi
-vault-1   166m         103Mi
-vault-2   179m         105Mi
-
-# 3:20PM PT
-NAME      CPU(cores)   MEMORY(bytes)
-vault-0   345m         245Mi
-vault-1   165m         159Mi
-vault-2   169m         157Mi
-
-
-# 3:52PM PT
-NAME      CPU(cores)   MEMORY(bytes)
-vault-0   351m         363Mi
-vault-1   176m         270Mi
-vault-2   164m         268Mi
-
-# 4:07PM PT
-NAME      CPU(cores)   MEMORY(bytes)
-vault-0   321m         412Mi
-vault-1   191m         322Mi
-vault-2   149m         323Mi
