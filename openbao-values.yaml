@@ -1,0 +1,83 @@
+# OpenBao Helm Chart Value Overrides (cutover from Vault)
+
+# Keep legacy service/DNS names (vault-*, vault-active, etc.)
+nameOverride: vault
+fullnameOverride: vault
+
+global:
+  enabled: true
+  tlsDisable: false
+
+ui:
+  enabled: true
+
+injector:
+  enabled: false
+
+server:
+
+  # Update paths for OpenBao userconfig mount location
+  extraEnvironmentVars:
+    VAULT_CACERT: /openbao/userconfig/vault-tls/ca.crt
+    VAULT_TLSCERT: /openbao/userconfig/vault-tls/tls.crt
+    VAULT_TLSKEY: /openbao/userconfig/vault-tls/tls.key
+
+  # Extra volumes are mounted under /openbao/userconfig/<name>
+  extraVolumes:
+    - type: secret
+      name: vault-tls
+
+  standalone:
+    enabled: false
+    
+  # Run OpenBao in "HA" mode with Raft
+  ha:
+    enabled: true
+    replicas: 3
+    raft:
+      enabled: true
+      setNodeId: true
+      config: |
+        ui = true
+
+        listener "tcp" {
+          address            = "0.0.0.0:8200"
+          cluster_address    = "0.0.0.0:8201"
+          tls_cert_file      = "/openbao/userconfig/vault-tls/tls.crt"
+          tls_key_file       = "/openbao/userconfig/vault-tls/tls.key"
+          tls_client_ca_file = "/openbao/userconfig/vault-tls/ca.crt"
+          tls_min_version    = "tls12"
+          telemetry {
+            unauthenticated_metrics_access = true
+          }
+        }
+
+        storage "raft" {
+          path = "/openbao/data"
+
+          retry_join {
+            # Keep label selector/DNS stable by using name/fullname override = "vault"
+            auto_join = "provider=k8s label_selector=\"component=server,app.kubernetes.io/name=vault\" namespace=\"openbao-vault\" "
+            leader_tls_servername   = "vault-active.openbao-vault.svc.cluster.local"
+            leader_client_cert_file = "/openbao/userconfig/vault-tls/tls.crt"
+            leader_client_key_file  = "/openbao/userconfig/vault-tls/tls.key"
+            leader_ca_cert_file     = "/openbao/userconfig/vault-tls/ca.crt"
+          }
+
+          autopilot {
+            cleanup_dead_servers        = "true"
+            last_contact_threshold      = "200ms"
+            last_contact_failure_threshold = "10m"
+            max_trailing_logs           = 250000
+            min_quorum                  = 5
+            server_stabilization_time   = "10s"
+          }
+        }
+
+        telemetry {
+          disable_hostname           = true
+          prometheus_retention_time  = "30s"
+          enable_hostname_label      = true
+        }
+
+        service_registration "kubernetes" {}

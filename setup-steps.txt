@@ -1,0 +1,93 @@
+# First make sure you have KIND installed
+# https://kind.sigs.k8s.io/docs/user/quick-start/#installation
+# Second make sure you have opentofu installed: https://opentofu.org/docs/intro/install/standalone/ 
+# Third make sure you have kubectl installed: https://kubernetes.io/docs/tasks/tools/install-kubectl-linux/
+
+
+With the above installed, run:
+./setup-cluster.sh
+
+
+Once everything is running, check the pods:
+kubectl get pods -n openbao-vault (ensure all vault/bao pods are running) It should be 0/1 with Running status until unsealed.
+
+# Initialize Vault and unseal with 3 of the 5 keys. below is an example of how to do it with kubectl exec
+
+```bash
+kubectl exec -it vault-0 -n openbao-vault -- sh -c "bao operator init"
+/ $ bao operator init
+Unseal Key 1: QuyirrtrvcWl+QVk19wHC/U+JejXYWRypxveXCIIY6ID
+Unseal Key 2: 6YzNAk9SeOeCZXu9lC32lPhn+r16KahQIq3nqS+sj9ox
+Unseal Key 3: z7E04QtEe6bB+aABohZD48k6011jWusjecNswJVFiwwz
+Unseal Key 4: RjOavwLloz0ga0/l1z9IpWzSYGSCJjWcs7/PEwtxP6+z
+Unseal Key 5: vsjEz8pbQxGVywrVpx8whBuHbLsfuT5zm/7xHj5N40wM
+
+Initial Root Token: s.eIS40OJqUV3qLt0paW5Phwgh
+
+# Save these keys and token somewhere safe. You will need them to unseal and access vault as shown below:
+
+kubectl exec -it vault-0 -n openbao-vault -- sh -c "bao operator init"
+kubectl exec -it vault-0 -n openbao-vault -- sh -c "bao operator unseal QuyirrtrvcWl+QVk19wHC/U+JejXYWRypxveXCIIY6ID"
+kubectl exec -it vault-0 -n openbao-vault -- sh -c "bao operator unseal 6YzNAk9SeOeCZXu9lC32lPhn+r16KahQIq3nqS+sj9ox"
+kubectl exec -it vault-0 -n openbao-vault -- sh -c "bao operator unseal z7E04QtEe6bB+aABohZD48k6011jWusjecNswJVFiwwz"
+
+kubectl exec -it vault-1 -n openbao-vault -- sh -c "bao operator unseal QuyirrtrvcWl+QVk19wHC/U+JejXYWRypxveXCIIY6ID"
+kubectl exec -it vault-1 -n openbao-vault -- sh -c "bao operator unseal 6YzNAk9SeOeCZXu9lC32lPhn+r16KahQIq3nqS+sj9ox"
+kubectl exec -it vault-1 -n openbao-vault -- sh -c "bao operator unseal z7E04QtEe6bB+aABohZD48k6011jWusjecNswJVFiwwz"
+
+kubectl exec -it vault-2 -n openbao-vault -- sh -c "bao operator unseal QuyirrtrvcWl+QVk19wHC/U+JejXYWRypxveXCIIY6ID"
+kubectl exec -it vault-2 -n openbao-vault -- sh -c "bao operator unseal 6YzNAk9SeOeCZXu9lC32lPhn+r16KahQIq3nqS+sj9ox"
+kubectl exec -it vault-2 -n openbao-vault -- sh -c "bao operator unseal z7E04QtEe6bB+aABohZD48k6011jWusjecNswJVFiwwz"
+
+```
+
+
+cd terraform
+tofu init #you can also use opentofu
+# connect to vault service to apply terraform
+kubectl -n openbao-vault port-forward svc/vault-ui 8200:8200 &
+tofu apply #when prompted use the root token from earlier when you initialized vault
+
+# Deploy external-secrets
+helm repo add external-secrets https://charts.external-secrets.io
+kubectl apply --server-side -f https://raw.githubusercontent.com/external-secrets/external-secrets/refs/tags/v0.19.2/deploy/crds/bundle.yaml
+helm install external-secrets external-secrets/external-secrets --version 0.19.2 -f external-secrets-values.yaml --namespace=external-secrets --create-namespace
+
+# Create a bunch of external secret resources to simulate load
+./manage-secrets.sh create
+
+
+
+# 2:53PM PT
+NAME      CPU(cores)   MEMORY(bytes)
+vault-0   330m         145Mi
+vault-1   170m         62Mi
+vault-2   172m         64Mi
+
+
+# 3:05PM PT
+Every 2.0s: kubectl top pods -n openbao-vault                                                                                                                                                                                                                        copper-sole: Tue Nov  4 23:05:19 2025
+
+NAME      CPU(cores)   MEMORY(bytes)
+vault-0   340m         189Mi
+vault-1   166m         103Mi
+vault-2   179m         105Mi
+
+# 3:20PM PT
+NAME      CPU(cores)   MEMORY(bytes)
+vault-0   345m         245Mi
+vault-1   165m         159Mi
+vault-2   169m         157Mi
+
+
+# 3:52PM PT
+NAME      CPU(cores)   MEMORY(bytes)
+vault-0   351m         363Mi
+vault-1   176m         270Mi
+vault-2   164m         268Mi
+
+# 4:07PM PT
+NAME      CPU(cores)   MEMORY(bytes)
+vault-0   321m         412Mi
+vault-1   191m         322Mi
+vault-2   149m         323Mi
